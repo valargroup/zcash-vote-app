@@ -7,7 +7,7 @@ use rusqlite::Connection;
 use tauri::State;
 use zcash_vote::{
     db::{load_prop, store_prop},
-    trees::{list_cmxs, list_nf_ranges},
+    trees::list_nf_ranges,
 };
 
 use crate::state::AppState;
@@ -17,7 +17,6 @@ pub fn compute_roots(state: State<Mutex<AppState>>) -> Result<(), String> {
     tauri_export!(state, connection, {
         if load_prop(&connection, "height")?.is_some() {
             compute_nf_root(&connection)?;
-            compute_cmx_root(&connection)?;
         }
         Ok::<_, Error>(())
     })
@@ -30,13 +29,4 @@ pub fn compute_nf_root(connection: &Connection) -> Result<Vec<u8>> {
     store_prop(connection, "nf_root", &hex::encode(nf_root.to_repr()))?;
 
     Ok(nf_root.to_repr().to_vec())
-}
-
-// TODO: Retrieve frontier
-pub fn compute_cmx_root(connection: &Connection) -> Result<Vec<u8>> {
-    let cmx_tree = list_cmxs(connection)?;
-    let (cmx_root, _) = calculate_merkle_paths(0, &[], &cmx_tree);
-    store_prop(connection, "cmx_root", &hex::encode(cmx_root.to_repr()))?;
-
-    Ok(cmx_root.to_repr().to_vec())
 }

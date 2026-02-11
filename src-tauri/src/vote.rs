@@ -1,16 +1,9 @@
 use crate::state::AppState;
 use anyhow::{Error, Result};
-use reqwest::header::CONTENT_TYPE;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::{ipc::Channel, State};
-use zcash_vote::{
-    address::VoteAddress,
-    db::{list_notes, load_prop},
-    decrypt::{to_fvk, to_sk},
-    election::{BALLOT_PK, BALLOT_VK},
-    trees::{list_cmxs, list_nf_ranges},
-};
+use zcash_vote::db::load_prop;
 
 #[tauri::command]
 pub fn get_sync_height(state: State<'_, Mutex<AppState>>) -> Result<Option<u32>, String> {
@@ -34,81 +27,13 @@ pub fn get_available_balance(state: State<'_, Mutex<AppState>>) -> Result<u64, S
 
 #[tauri::command]
 pub async fn vote(
-    address: String,
-    amount: u64,
-    channel: Channel<String>,
-    state: State<'_, Mutex<AppState>>,
+    _address: String,
+    _amount: u64,
+    _channel: Channel<String>,
+    _state: State<'_, Mutex<AppState>>,
 ) -> Result<String, String> {
-    let r = async {
-        let (pool, base_urls, sk, fvk, scope, domain, signature_required) = {
-            let state = state.lock().unwrap();
-            let pool = state.pool.clone();
-            let base_urls = state.urls.clone();
-            let sk = to_sk(&state.key)?;
-            let fvk = to_fvk(&state.key)?;
-            let scope = state.scope;
-            let domain = state.election.domain();
-            let signature_required = state.election.signature_required;
-            (pool, base_urls, sk, fvk, scope, domain, signature_required)
-        };
-        let rng = rand_core::OsRng;
-        let vaddress = VoteAddress::decode(&address)?;
-        let connection = pool.get()?;
-        let notes = list_notes(&connection, 0, &fvk, scope)?;
-        let cmxs = list_cmxs(&connection)?;
-        let nfs = list_nf_ranges(&connection)?;
-        let ballot = orchard::vote::vote(
-            domain,
-            signature_required,
-            sk,
-            &fvk,
-            vaddress.0,
-            amount,
-            &notes,
-            &nfs,
-            &cmxs,
-            rng,
-            |m| {
-                let _ = channel.send(m);
-            },
-            &BALLOT_PK,
-            &BALLOT_VK,
-        )?;
-
-        let client = reqwest::Client::new();
-        let mut hash = String::new();
-        let mut error = String::new();
-        let mut success = false;
-        for base_url in base_urls.iter() {
-            let url = format!("{}/ballot", base_url);
-            let rep = client
-                .post(url)
-                .header(CONTENT_TYPE, "application/json")
-                .json(&ballot)
-                .send()
-                .await?;
-            let s = rep.status().is_success();
-            let res = rep.text().await?;
-            if s {
-                success = true;
-            } else {
-                tracing::info!("ERROR (transient): {error}");
-                error = res;
-                continue;
-            }
-
-            if hash.is_empty() {
-                hash = hex::encode(ballot.data.sighash()?);
-                crate::db::store_vote(&connection, &hash, &address, amount)?;
-            }
-        }
-        if !success {
-            anyhow::bail!(error);
-        }
-        Ok::<_, Error>(hash)
-    };
-
-    r.await.map_err(|e| e.to_string())
+    // TODO: re-enable when note/cmx tracking is restored
+    Err("Voting not available: note tracking disabled".to_string())
 }
 
 #[tauri::command]

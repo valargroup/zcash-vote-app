@@ -6,7 +6,6 @@ use rusqlite::OptionalExtension;
 use tauri::{ipc::Channel, State};
 use zcash_vote::{
     db::{load_prop, store_prop},
-    decrypt::to_fvk,
     election::Election,
 };
 
@@ -28,13 +27,11 @@ pub async fn download_reference_data(
     channel: Channel<u32>,
 ) -> Result<(), String> {
     let r = async {
-        let (connection, election, fvk, scope) = {
+        let (connection, election) = {
             let s = state.lock().unwrap();
-            let fvk = to_fvk(&s.key)?;
             let connection = s.pool.get().unwrap();
             let election = s.election.clone();
-            let scope = s.scope;
-            (connection, election, fvk, scope)
+            (connection, election)
         };
         let lwd_url = std::env::var("LWD_URL").unwrap_or("https://zec.rocks".to_string());
         connection.execute("BEGIN TRANSACTION", [])?;
@@ -42,8 +39,6 @@ pub async fn download_reference_data(
             connection,
             0,
             &election,
-            Some(fvk),
-            scope,
             &lwd_url,
             move |h| {
                 let _ = channel.send(h);
