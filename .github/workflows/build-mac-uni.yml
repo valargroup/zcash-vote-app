@@ -37,7 +37,7 @@ jobs:
           version: 10
       - name: Prepare Tauri
         run: |
-          pnpm install
+          pnpm install --frozen-lockfile
           pnpm tauri icon
       - name: Tauri build
         uses: tauri-apps/tauri-action@v0

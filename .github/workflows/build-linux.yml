@@ -24,7 +24,7 @@ jobs:
       run: |
         sudo apt update
         sudo apt install -y libwebkit2gtk-4.1-dev
-        pnpm install
+        pnpm install --frozen-lockfile
         pnpm tauri icon
         NO_STRIP=1 pnpm tauri build --no-bundle
         pnpm tauri bundle --bundles deb
